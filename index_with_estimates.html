@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Anna Health Tracker</title>
+<style>
+*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;margin:0;padding:18px;background:#f8f4ef;color:#241f1c;max-width:680px;margin-inline:auto}h1{margin:6px 0 4px;font-size:30px}h2{margin:0 0 12px;font-size:19px}.date,.small{color:#746a61;font-size:13px;line-height:1.35}.card{background:white;border:1px solid #e4d8cd;border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 2px 8px #0000000a}.goal{text-align:center;font-size:18px;font-weight:800;padding:14px;border-radius:16px;background:#efe2d6}.goal.win{background:#dcefe4;color:#2f7d52}.goal.gold{background:#fff0bd;color:#6b4d00}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.metric{background:#fbf8f5;border:1px solid #e4d8cd;border-radius:14px;padding:12px}.label{color:#746a61;font-size:13px}.value{font-size:26px;font-weight:800;margin-top:4px}.barWrap{height:18px;background:#eee3da;border-radius:99px;overflow:hidden;margin:12px 0 6px}.bar{height:100%;width:0%;background:#8b5e3c;transition:.2s}input{width:100%;padding:14px;border:1px solid #e4d8cd;border-radius:12px;font-size:16px;margin:5px 0}button{border:0;border-radius:12px;padding:13px 14px;font-size:16px;font-weight:750;background:#8b5e3c;color:white;margin:4px 4px 4px 0;cursor:pointer}.secondary{background:#efe2d6;color:#241f1c}.danger{background:#9a3d3d}.row{display:grid;grid-template-columns:1fr 96px;gap:8px;align-items:end}.quick{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.quick button{margin:0;text-align:left;min-height:54px}.check{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:650}.check input{width:24px;height:24px;margin:0}ul{padding-left:18px;margin-bottom:0}li{margin-bottom:8px}pre{white-space:pre-wrap;background:#fbf8f5;padding:10px;border-radius:12px;border:1px solid #e4d8cd;max-height:240px;overflow:auto}@media(max-width:430px){.grid,.quick{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<h1>Health Tracker</h1><div class="date" id="dateLabel"></div>
+<div class="card"><div class="goal" id="goalBox">Loading...</div><div class="barWrap"><div class="bar" id="proteinBar"></div></div><div class="small" id="proteinNote"></div></div>
+<div class="card"><h2>Today</h2><div class="grid"><div class="metric"><div class="label">Protein</div><div class="value"><span id="proteinTotal">0</span>g</div></div><div class="metric"><div class="label">Movement</div><div class="value"><span id="movementTotal">0</span> min</div></div><div class="metric"><div class="label">Journaled</div><div class="value" id="journalStatus">No</div></div><div class="metric"><div class="label">Win status</div><div class="value" id="goalStatus">No</div></div></div></div>
+<div class="card"><h2>Add protein</h2>
+<input id="proteinName" placeholder="What did you eat? e.g. cottage cheese" oninput="estimateProtein()">
+<div class="small" id="estimateNote">Type a food and I’ll estimate protein. You can override the grams.</div>
+<div class="row"><input id="proteinAmount" type="number" inputmode="decimal" placeholder="Estimated protein grams"><button onclick="addProtein()">Add</button></div>
+<div class="quick"><button class="secondary" onclick="quickFood(30,'Coffee protein drink')">Coffee protein<br><span class="small">+30g</span></button><button class="secondary" onclick="quickFood(25,'Isopure shake')">Isopure<br><span class="small">+25g</span></button><button class="secondary" onclick="quickFood(20,'Protein bar')">Protein bar<br><span class="small">+20g</span></button><button class="secondary" onclick="quickFood(15,'Greek yogurt')">Greek yogurt<br><span class="small">+15g</span></button></div></div>
+<div class="card"><h2>Movement</h2><div class="row"><input id="movementAmount" type="number" inputmode="numeric" placeholder="Minutes moved, e.g. 15"><button onclick="addMovement()">Add</button></div><div class="quick"><button class="secondary" onclick="addMovementEntry(15)">+15 min</button><button class="secondary" onclick="addMovementEntry(30)">+30 min</button></div></div>
+<div class="card"><h2>Journal</h2><label class="check"><input type="checkbox" id="journalCheck" onchange="toggleJournal()"> I journaled today</label><p class="small">Counts as yes/no. Think of this as at least 5 minutes or an honest quick check-in.</p></div>
+<div class="card"><h2>Today’s entries</h2><ul id="entries"></ul></div>
+<div class="card"><h2>Backup</h2><p class="small">This saves on your phone/browser. Export occasionally and upload here if you want me to analyze trends.</p><button onclick="exportCSV()">Export CSV</button><button class="secondary" onclick="showHistory()">Show history</button><button class="danger" onclick="resetToday()">Reset today</button><pre id="history"></pre></div>
+<script>
+const KEY="anna_health_tracker_v2", WIN_PROTEIN=100, GOLD_PROTEIN=120, WIN_MOVE=15, GOLD_MOVE=30;
+
+const FOOD_PROTEIN=[
+["coffee protein",30],["protein coffee",30],["isopure",25],["protein shake",25],["protein powder",25],["protein bar",20],
+["greek yogurt",15],["yogurt",12],["cottage cheese",14],["chicken",30],["turkey",28],["tuna",25],["salmon",23],
+["egg",6],["eggs",12],["tofu",18],["tempeh",20],["edamame",17],["beans",15],["lentils",18],["chickpeas",15],
+["cheese",7],["feta",4],["milk",8],["fairlife",13],["shrimp",24],["beef",25],["pork",24],["imitation crab",6]
+];
+function findEstimate(name){const s=name.toLowerCase();let best=null;for(const item of FOOD_PROTEIN){if(s.includes(item[0])){best=item;break}}return best}
+function estimateProtein(){const name=document.getElementById("proteinName").value.trim();const note=document.getElementById("estimateNote");if(!name){note.textContent="Type a food and I’ll estimate protein. You can override the grams.";return}const hit=findEstimate(name);if(hit){document.getElementById("proteinAmount").value=hit[1];note.textContent=`Estimated ${hit[1]}g based on “${hit[0]}.” Edit grams if you know the real amount.`}else{note.textContent="No estimate found. Enter grams manually."}}
+function quickFood(amt,name){document.getElementById("proteinName").value=name;document.getElementById("proteinAmount").value=amt;document.getElementById("estimateNote").textContent=`Estimated ${amt}g. Edit grams if needed, then tap Add.`}
+
+function localDateKey(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function prettyDate(){return new Date().toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric",year:"numeric"})}
+function nowTime(){return new Date().toLocaleTimeString(undefined,{hour:"numeric",minute:"2-digit"})}
+function blankDay(){return {protein:0,movement:0,journaled:false,entries:[]}}
+function loadAll(){try{return JSON.parse(localStorage.getItem(KEY))||{}}catch(e){return {}}}
+function saveAll(data){localStorage.setItem(KEY,JSON.stringify(data))}
+function getDay(){const data=loadAll(),k=localDateKey();if(!data[k]){data[k]=blankDay();saveAll(data)}return data[k]}
+function saveDay(day){const data=loadAll();data[localDateKey()]=day;saveAll(data);render()}
+function addProtein(){const amt=parseFloat(document.getElementById("proteinAmount").value),name=document.getElementById("proteinName").value.trim()||"Protein";if(!amt||amt<=0){alert("Enter protein grams first.");return}addProteinEntry(amt,name);document.getElementById("proteinAmount").value="";document.getElementById("proteinName").value=""}
+function addProteinEntry(amt,name){const d=getDay();d.protein=Math.round((d.protein+Number(amt))*10)/10;d.entries.push({time:nowTime(),type:"Protein",label:name,amount:amt,unit:"g"});saveDay(d)}
+function addMovement(){const amt=parseInt(document.getElementById("movementAmount").value,10);if(!amt||amt<=0){alert("Enter movement minutes first.");return}addMovementEntry(amt);document.getElementById("movementAmount").value=""}
+function addMovementEntry(amt){const d=getDay();d.movement+=Number(amt);d.entries.push({time:nowTime(),type:"Movement",label:"Body movement",amount:amt,unit:"min"});saveDay(d)}
+function toggleJournal(){const d=getDay();d.journaled=document.getElementById("journalCheck").checked;d.entries.push({time:nowTime(),type:"Journal",label:d.journaled?"Journaled":"Journal unchecked",amount:"",unit:""});saveDay(d)}
+function dailyWin(d){return d.protein>=WIN_PROTEIN&&d.movement>=WIN_MOVE&&d.journaled}
+function goldWin(d){return d.protein>=GOLD_PROTEIN&&d.movement>=GOLD_MOVE&&d.journaled}
+function render(){const d=getDay();document.getElementById("dateLabel").textContent=prettyDate();document.getElementById("proteinTotal").textContent=d.protein;document.getElementById("movementTotal").textContent=d.movement;document.getElementById("journalStatus").textContent=d.journaled?"Yes":"No";document.getElementById("journalCheck").checked=d.journaled;document.getElementById("proteinBar").style.width=Math.min(d.protein/GOLD_PROTEIN*100,100)+"%";let note="";if(d.protein<WIN_PROTEIN)note=`${Math.round((WIN_PROTEIN-d.protein)*10)/10}g to daily win. ${Math.round((GOLD_PROTEIN-d.protein)*10)/10}g to gold star.`;else if(d.protein<GOLD_PROTEIN)note=`Daily protein win hit. ${Math.round((GOLD_PROTEIN-d.protein)*10)/10}g to gold star.`;else note="Gold star protein hit.";document.getElementById("proteinNote").textContent=note;const box=document.getElementById("goalBox");if(goldWin(d)){box.className="goal gold";box.textContent="Gold star day ⭐ 120g protein + 30 min movement + journal";document.getElementById("goalStatus").textContent="Gold"}else if(dailyWin(d)){box.className="goal win";box.textContent="Daily win 🎉 100g protein + 15 min movement + journal";document.getElementById("goalStatus").textContent="Yes"}else{box.className="goal";box.textContent="Daily win: 100g protein + 15 min movement + journal";document.getElementById("goalStatus").textContent="Not yet"}const ul=document.getElementById("entries");ul.innerHTML="";if(!d.entries.length){const li=document.createElement("li");li.textContent="No entries yet.";ul.appendChild(li)}else{d.entries.slice().reverse().forEach(e=>{const li=document.createElement("li");li.textContent=`${e.time} - ${e.type}: ${e.label}${e.amount!==""?` (${e.amount}${e.unit})`:""}`;ul.appendChild(li)})}}
+function resetToday(){if(!confirm("Reset today's tracker?"))return;const data=loadAll();data[localDateKey()]=blankDay();saveAll(data);render()}
+function showHistory(){const data=loadAll();const lines=Object.keys(data).sort().slice(-14).map(k=>{const d=data[k];return `${k}: ${d.protein}g protein, ${d.movement} min, journaled ${d.journaled?"yes":"no"}, win ${dailyWin(d)?"yes":"no"}, gold ${goldWin(d)?"yes":"no"}`});document.getElementById("history").textContent=lines.length?lines.join("\\n"):"No history yet."}
+function exportCSV(){const data=loadAll();const rows=[["date","protein_total_g","movement_total_min","journaled","daily_win","gold_star","entry_time","entry_type","entry_label","entry_amount","entry_unit"]];Object.keys(data).sort().forEach(k=>{const d=data[k];if(!d.entries.length){rows.push([k,d.protein,d.movement,d.journaled?"yes":"no",dailyWin(d)?"yes":"no",goldWin(d)?"yes":"no","","","","",""])}else{d.entries.forEach(e=>rows.push([k,d.protein,d.movement,d.journaled?"yes":"no",dailyWin(d)?"yes":"no",goldWin(d)?"yes":"no",e.time,e.type,e.label,e.amount,e.unit]))}});const csv=rows.map(r=>r.map(c=>`"${String(c).replaceAll('"','""')}"`).join(",")).join("\\n");const blob=new Blob([csv],{type:"text/csv"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="anna_health_tracker_export.csv";a.click();URL.revokeObjectURL(url)}
+render();
+</script>
+</body>
+</html>
